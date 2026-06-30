@@ -1,0 +1,185 @@
+================================================================================
+          CONNECTSPACE - BACKEND DEVELOPMENT LEARNING GUIDE
+================================================================================
+
+This guide helps you build the backend for your social media application using Node.js,
+Express, Mongoose, and Socket.io. 
+
+I have created the *required project structure* inside the "server" folder. 
+NO backend code has been run or executed. The files are skeletons/boilerplates
+designed to serve as clean templates for your learning process.
+
+--------------------------------------------------------------------------------
+1. PROJECT STRUCTURE OVERVIEW
+--------------------------------------------------------------------------------
+Your "server" folder contains the standard structure for a model-controller-route
+express application:
+
+server/
+├── package.json         <- Package dependency list (express, mongoose, socket.io, multer, etc.)
+├── .env                 <- Local configuration (port, mongo uri, cloud keys)
+└── src/
+    ├── app.js           <- Entry point. Connects DB, configures middlewares, hosts Socket.io
+    ├── config/
+    │   └── db.js        <- Mongoose connection setup
+    ├── middleware/
+    │   └── auth.js      <- JWT verification middleware skeleton
+    ├── models/          <- Mongoose Schemas
+    │   ├── User.js      <- Handles user accounts, bcrypt hashing, and E2EE Public Keys
+    │   ├── Post.js      <- Handles image posts, likes, and comment subdocuments
+    │   └── Message.js   <- Handles E2EE chat packets (ciphertext, iv, encrypted key)
+    └── routes/          <- Express API endpoints
+        ├── auth.js      <- Login, Register, Profile, and Public Key fetching
+        ├── posts.js     <- Post uploads, feed retrieval, likes, comments
+        └── chats.js     <- Encrypted message logs retrieval
+
+--------------------------------------------------------------------------------
+2. CLOUD-BASED OBJECT STORAGE OPTIONS
+--------------------------------------------------------------------------------
+For a production social media app, files (images) should not be saved locally on 
+the server because local servers are transient and don't scale. Instead, you upload
+images to an Object Storage provider and save only the HTTPS URL in your database.
+
+Here are the top two cloud object storage solutions for Node.js developers:
+
+----------------------------------------------------
+Option A: Cloudinary (Highly Recommended for Learning)
+----------------------------------------------------
+* Why: Very simple, automatic image optimization (compression, sizing), excellent
+  free tier, and native support for Express uploads.
+* Setup Steps:
+  1. Create a free account at https://cloudinary.com
+  2. Copy your Cloud Name, API Key, and API Secret from the dashboard.
+  3. Paste them in your server's `.env` file.
+
+* Cloudinary Express Integration Code:
+  First, install the packages: `npm install multer cloudinary multer-storage-cloudinary`
+  Then, create a helper configuration in your route file:
+
+  ```javascript
+  const multer = require('multer');
+  const cloudinary = require('cloudinary').v2;
+  const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+  // Configure Cloudinary
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+
+  // Configure Storage Engine
+  const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+      folder: 'connectspace_posts', // Folder name in Cloudinary
+      allowedFormats: ['jpg', 'png', 'jpeg'],
+      transformation: [{ width: 800, crop: 'limit' }] // Resize on upload
+    },
+  });
+
+  const upload = multer({ storage: storage });
+
+  // Use in your Express Route:
+  router.post('/api/posts', protect, upload.single('image'), async (req, res) => {
+    // req.file.path contains the cloud URL hosted securely on Cloudinary!
+    const imageUrl = req.file.path; 
+    const newPost = await Post.create({
+      author: req.user._id,
+      imageUrl,
+      caption: req.body.caption
+    });
+    res.status(201).json(newPost);
+  });
+  ```
+
+----------------------------------------------------
+Option B: AWS S3 (Amazon Web Services Simple Storage Service)
+----------------------------------------------------
+* Why: The industry standard. Highly scalable and standard across enterprise.
+* Setup Steps:
+  1. Create an AWS Account.
+  2. Create an S3 Bucket. Make sure to enable public access if you want images to be
+     visible publicly, or set up CORS rules allowing your client origin.
+  3. Create an IAM User with AmazonS3FullAccess permission and copy the Access Key
+     ID and Secret Access Key.
+
+* S3 Integration Code:
+  Install the SDK packages: `npm install @aws-sdk/client-s3 multer-s3 multer`
+  Then set up S3 storage engine:
+
+  ```javascript
+  const { S3Client } = require('@aws-sdk/client-s3');
+  const multer = require('multer');
+  const multerS3 = require('multer-s3');
+
+  // Initialize AWS S3 client
+  const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    }
+  });
+
+  // Configure Multer-S3
+  const uploadS3 = multer({
+    storage: multerS3({
+      s3: s3,
+      bucket: process.env.AWS_S3_BUCKET_NAME,
+      acl: 'public-read', // Let the file be publicly accessible
+      metadata: function (req, file, cb) {
+        cb(null, { fieldName: file.fieldname });
+      },
+      key: function (req, file, cb) {
+        cb(null, 'posts/' + Date.now().toString() + '-' + file.originalname);
+      }
+    })
+  });
+
+  // Use in Route:
+  router.post('/api/posts', protect, uploadS3.single('image'), async (req, res) => {
+    // req.file.location contains the S3 bucket image URL
+    const imageUrl = req.file.location;
+    // ... Save to Mongoose database
+  });
+  ```
+
+--------------------------------------------------------------------------------
+3. END-TO-END ENCRYPTION (E2EE) FLOW EXPLAINED
+--------------------------------------------------------------------------------
+Because the user requested End-to-End Encryption (E2EE), the server acts only
+as a *blind post office*. 
+
+The server's role in E2EE:
+1. Stores the Public Key: During registration, the frontend generates a public-private
+   key pair. The client uploads the Public Key (`publicKeyBase64`) to the user profile in
+   the database. The Private Key is NEVER sent to the server.
+2. Exchange Key: When User A wants to chat with User B, User A queries User B's Public Key.
+3. Encryption: User A encrypts the message using User B's public key. The output contains:
+   - `encryptedMessage` (Ciphertext string)
+   - `encryptedKey` (Symmetric key encrypted by User B's public key)
+   - `iv` (Initialization vector)
+4. Storage: User A posts this packet to `/api/chats` or sends it via socket.io.
+5. The server stores this packet in MongoDB inside the `Message` schema. The server 
+   CANNOT decrypt this message because the decryption requires the recipient's private key,
+   which only User B holds.
+6. Decryption: User B retrieves the message log, reads the packets, and decrypts it locally
+   in the browser.
+
+--------------------------------------------------------------------------------
+4. HOW TO RUN THE SERVER SKELETON (To begin backend coding)
+--------------------------------------------------------------------------------
+1. Navigate into the folder:
+   cd social-media/server
+
+2. Install the configured node modules:
+   npm install
+
+3. Duplicate ".env.example" as ".env" and fill in your variables (such as local MongoDB URI).
+
+4. Start development mode with live reload:
+   npm run dev
+
+5. Integrate your route handlers!
+================================================================================

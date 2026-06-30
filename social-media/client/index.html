@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ConnectSpace — Sign In</title>
+    <meta name="description" content="Sign in to ConnectSpace and connect with people you love." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-brand">✦ ConnectSpace</div>
+    <div class="nav-links">
+        <a href="index.html" class="nav-link active">Sign In</a>
+        <a href="signup.html" class="nav-link">Sign Up</a>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
+    </div>
+</nav>
+
+<main class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">👋</div>
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Sign in to your ConnectSpace account</p>
+        </div>
+
+        <form id="signin-form" class="auth-form" novalidate>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@example.com" required />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="password-wrap">
+                    <input type="password" id="password" placeholder="••••••••" required />
+                    <button type="button" class="toggle-pw" data-target="password">👁</button>
+                </div>
+            </div>
+
+            <div id="signin-msg" class="form-msg hidden"></div>
+
+            <button type="submit" class="btn-primary" id="signin-btn">
+                <span class="btn-text">Sign In</span>
+                <span class="spinner hidden"></span>
+            </button>
+        </form>
+
+        <p class="auth-footer">Don't have an account? <a href="signup.html">Sign Up</a></p>
+    </div>
+</main>
+
+<script src="js/utils.js"></script>
+<script src="js/signin.js"></script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ConnectSpace — Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="nav-brand">✦ ConnectSpace</div>
+    <div class="nav-links">
+        <a href="feed.html"    class="nav-link">🏠 Feed</a>
+        <a href="profile.html" class="nav-link active">👤 Profile</a>
+        <a href="chat.html"    class="nav-link">💬 Messages</a>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
+        <button class="nav-icon-btn" id="logout-btn" title="Sign out">🚪</button>
+    </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="app-layout">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-user">
+            <img id="sb-avatar" class="sidebar-avatar" src="" alt="avatar" />
+            <div class="sidebar-name" id="sb-name">—</div>
+            <div class="sidebar-handle" id="sb-handle">@—</div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="feed.html"><span class="nav-emoji">🏠</span> Feed</a>
+            <a href="profile.html" class="active"><span class="nav-emoji">👤</span> Profile</a>
+            <a href="chat.html">  <span class="nav-emoji">💬</span> Messages</a>
+        </nav>
+    </aside>
+
+    <!-- PROFILE CONTENT -->
+    <main class="feed-col" style="max-width:600px;margin:0 auto;padding:20px">
+        <div class="profile-card">
+            <div class="profile-banner"></div>
+            <div class="profile-info-row">
+                <div class="profile-avatar-wrap">
+                    <img id="profile-avatar" src="" alt="avatar" class="profile-avatar" />
+                </div>
+                <button class="profile-edit-btn" id="open-edit-modal-btn">✏️ Edit Profile</button>
+            </div>
+            
+            <div style="padding:0 28px 24px">
+                <h1 class="profile-name" id="profile-username">—</h1>
+                <p class="profile-handle" id="profile-email">—</p>
+                <p class="profile-bio" id="profile-bio">—</p>
+            </div>
+
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-num" id="stat-posts">0</div>
+                    <div class="stat-label">Posts</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num" id="stat-followers">0</div>
+                    <div class="stat-label">Followers</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num" id="stat-following">0</div>
+                    <div class="stat-label">Following</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:15px;font-weight:700;font-size:1.1rem;color:var(--text)">My Posts</div>
+        <div class="profile-posts-grid" id="profile-posts-grid">
+            <!-- User's posts thumbnails will load here -->
+        </div>
+    </main>
+
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div id="edit-profile-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <h2 class="modal-title">Edit Profile</h2>
+        <form id="edit-profile-form">
+            <div class="form-group" style="display:flex;flex-direction:column;gap:5px">
+                <label for="edit-bio" style="font-size:0.88rem;font-weight:600">Bio</label>
+                <textarea id="edit-bio" rows="3" placeholder="Tell us about yourself..." style="width:100%;padding:10px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;resize:none;outline:none"></textarea>
+            </div>
+            <div class="form-group" style="margin-top:15px;display:flex;flex-direction:column;gap:5px">
+                <label for="edit-avatar-input" style="font-size:0.88rem;font-weight:600">Avatar Photo</label>
+                <input type="file" id="edit-avatar-input" accept="image/*" style="font-size:0.85rem" />
+                <div style="margin-top:10px;display:flex;align-items:center;gap:12px">
+                    <img id="edit-avatar-preview" src="" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" />
+                    <span style="font-size:0.8rem;color:var(--muted)">Preview</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="profile-edit-btn" id="close-modal-btn">Cancel</button>
+                <button type="submit" class="btn-primary" id="save-profile-btn" style="width:auto;padding:10px 20px">
+                    <span class="btn-text">Save Changes</span>
+                    <span class="spinner hidden"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/utils.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+const profileAvatar = document.getElementById("profile-avatar");
+const profileUsername = document.getElementById("profile-username");
+const profileEmail = document.getElementById("profile-email");
+const profileBio = document.getElementById("profile-bio");
+
+const sbAvatar = document.getElementById("sb-avatar");
+const sbName = document.getElementById("sb-name");
+const sbHandle = document.getElementById("sb-handle");
+
+const statPosts = document.getElementById("stat-posts");
+const statFollowers = document.getElementById("stat-followers");
+const statFollowing = document.getElementById("stat-following");
+const postsGrid = document.getElementById("profile-posts-grid");
+
+// Modal Elements
+const editModal = document.getElementById("edit-profile-modal");
+const openEditModalBtn = document.getElementById("open-edit-modal-btn");
+const closeBtn = document.getElementById("close-modal-btn");
+const editForm = document.getElementById("edit-profile-form");
+const editBio = document.getElementById("edit-bio");
+const editAvatarInput = document.getElementById("edit-avatar-input");
+const editAvatarPreview = document.getElementById("edit-avatar-preview");
+const saveBtn = document.getElementById("save-profile-btn");
+
+let avatarBase64 = null;
+
+// Initial sync with localStorage user info
+function syncSidebar() {
+    const freshUser = getUser();
+    const avatarUrl = freshUser.avatar?.url || avatar(freshUser.username);
+    sbAvatar.src = avatarUrl;
+    sbName.textContent = freshUser.username;
+    sbHandle.textContent = "@" + freshUser.username;
+}
+
+// Load profile data from server to get fresh counts/avatar/bio
+async function loadProfile() {
+    try {
+        const response = await apiFetch("/auth/profile");
+        const freshUser = response.user;
+        setUser(freshUser);
+        
+        const avatarUrl = freshUser.avatar?.url || avatar(freshUser.username);
+        profileAvatar.src = avatarUrl;
+        profileUsername.textContent = freshUser.username;
+        profileEmail.textContent = freshUser.email;
+        profileBio.textContent = freshUser.bio || "No bio yet";
+        
+        statFollowers.textContent = freshUser.followers?.length || 0;
+        statFollowing.textContent = freshUser.following?.length || 0;
+        
+        syncSidebar();
+        loadUserPosts(freshUser._id);
+    } catch (error) {
+        showToast("Error loading profile details: " + error.message, "error");
+    }
+}
+
+// Load user's posts
+async function loadUserPosts(userId) {
+    try {
+        const response = await apiFetch(`/posts/user/${userId}`);
+        postsGrid.innerHTML = "";
+        
+        const postsCount = response.posts?.length || 0;
+        statPosts.textContent = postsCount;
+        
+        if (response.posts && response.posts.length > 0) {
+            response.posts.forEach(post => {
+                const img = document.createElement("img");
+                img.className = "profile-post-thumb";
+                img.src = post.image || "https://placehold.co/300x300?text=No+Image";
+                img.alt = "Post Thumbnail";
+                img.addEventListener("click", () => {
+                    showToast(post.caption || "No caption", "info");
+                });
+                postsGrid.appendChild(img);
+            });
+        } else {
+            postsGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">No posts shared yet</div>';
+        }
+    } catch (err) {
+        postsGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--danger)">Failed to load posts</div>';
+        console.error(err);
+    }
+}
+
+// Modal Toggle Handlers
+openEditModalBtn.addEventListener("click", () => {
+    const freshUser = getUser();
+    editBio.value = freshUser.bio || "";
+    editAvatarPreview.src = freshUser.avatar?.url || avatar(freshUser.username);
+    avatarBase64 = null;
+    editAvatarInput.value = "";
+    editModal.classList.remove("hidden");
+});
+
+closeBtn.addEventListener("click", () => {
+    editModal.classList.add("hidden");
+});
+
+// Image Upload Preview in Modal
+editAvatarInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            editAvatarPreview.src = event.target.result;
+            avatarBase64 = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// Form Submission
+editForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+        setLoading(saveBtn, true);
+        const bio = editBio.value.trim();
+        
+        const payload = { bio };
+        if (avatarBase64) {
+            payload.avatar = avatarBase64;
+        }
+        
+        const response = await apiFetch("/auth/profile", {
+            method: "PUT",
+            body: JSON.stringify(payload)
+        });
+        
+        showToast("Profile updated successfully! ✓", "success");
+        editModal.classList.add("hidden");
+        loadProfile();
+    } catch (error) {
+        showToast(error.message, "error");
+    } finally {
+        setLoading(saveBtn, false);
+    }
+});
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+    logout();
+});
+
+// Load profile detail on page mount
+loadProfile();
+</script>
+
+</body>
+</html>
